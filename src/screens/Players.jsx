@@ -4,6 +4,7 @@ import { initialPlayers } from '../data/initial'
 import Modal from '../components/Modal'
 
 const POSITIONS = ['GK', 'DEF', 'MID', 'FWD']
+const PLAYER_GROUPS = ['U10', 'U12', 'U14', 'U16', 'U18', 'Senior']
 const FILTERS = ['All', ...POSITIONS]
 
 const POS_COLOR = {
@@ -13,7 +14,7 @@ const POS_COLOR = {
   FWD: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
 }
 
-const emptyForm = { name: '', number: '', position: 'FWD', age: '', phone: '', notes: '' }
+const emptyForm = { name: '', number: '', position: 'FWD', age: '', group: '', phone: '', notes: '' }
 
 function newId() {
   return 'p' + Date.now()
@@ -187,9 +188,9 @@ export default function Players() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-100 truncate">{p.name}</p>
                   <p className="text-xs text-slate-400 mt-0.5">
+                    {p.group ? `${p.group}` : ''}
+                    {p.group && p.age ? ' · ' : ''}
                     {p.age ? `Age ${p.age}` : ''}
-                    {p.age && p.phone ? ' · ' : ''}
-                    {p.phone || ''}
                   </p>
                 </div>
 
@@ -239,6 +240,26 @@ export default function Players() {
                   }`}
                 >
                   {pos}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-slate-400 mb-1">Group</label>
+            <div className="flex gap-2 flex-wrap">
+              {PLAYER_GROUPS.map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, group: f.group === g ? '' : g }))}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                    form.group === g
+                      ? 'bg-emerald-400 text-slate-900 border-emerald-400'
+                      : 'bg-slate-900 text-slate-400 border-slate-700'
+                  }`}
+                >
+                  {g}
                 </button>
               ))}
             </div>

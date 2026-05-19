@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { initialSessions } from '../data/initial'
 import Modal from '../components/Modal'
+import SessionDetail from './SessionDetail'
 
 const TYPE_COLOR = {
   Training: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
@@ -9,27 +10,29 @@ const TYPE_COLOR = {
   Other:    'bg-slate-500/20 text-slate-300 border-slate-500/30',
 }
 
-const TYPES = ['Training', 'Match', 'Other']
+const TYPES   = ['Training', 'Match', 'Other']
 const FILTERS = ['All', ...TYPES]
+const GROUPS  = ['All', 'U10', 'U12', 'U14', 'U16', 'U18', 'Senior']
 
-function formatDate(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
-}
+const emptyForm = { title: '', date: '', time: '', location: '', type: 'Training', group: 'All', notes: '' }
 
-const emptyForm = { title: '', date: '', time: '', location: '', type: 'Training', notes: '' }
-
-function newId() {
-  return 's' + Date.now()
-}
+function newId() { return 's' + Date.now() }
 
 export default function Sessions() {
   const [sessions, setSessions] = useLocalStorage('coachcr_sessions', initialSessions)
-  const [filter, setFilter] = useState('All')
-  const [modal, setModal] = useState(null) // null | 'add' | 'edit'
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyForm)
-  const [errors, setErrors] = useState({})
+  const [filter,   setFilter]   = useState('All')
+  const [selected, setSelected] = useState(null)   // session object for detail view
+  const [modal,    setModal]    = useState(null)    // null | 'add' | 'edit'
+  const [editing,  setEditing]  = useState(null)
+  const [form,     setForm]     = useState(emptyForm)
+  const [errors,   setErrors]   = useState({})
+
+  // If a session is selected, show its detail screen
+  if (selected) {
+    // Always read the latest version of the session (in case it was edited)
+    const live = sessions.find((s) => s.id === selected.id) || selected
+    return <SessionDetail session={live} onBack={() => setSelected(null)} />
+  }
 
   const filtered = [...sessions]
     .filter((s) => filter === 'All' || s.type === filter)
@@ -43,8 +46,9 @@ export default function Sessions() {
     setModal('add')
   }
 
-  function openEdit(session) {
-    setForm({ ...session })
+  function openEdit(e, session) {
+    e.stopPropagation()
+    setForm({ ...emptyForm, ...session })
     setEditing(session.id)
     setErrors({})
     setModal('edit')
@@ -52,9 +56,9 @@ export default function Sessions() {
 
   function validate(f) {
     const e = {}
-    if (!f.title.trim()) e.title = 'Required'
-    if (!f.date) e.date = 'Required'
-    if (!f.time) e.time = 'Required'
+    if (!f.title.trim())    e.title    = 'Required'
+    if (!f.date)            e.date     = 'Required'
+    if (!f.time)            e.time     = 'Required'
     if (!f.location.trim()) e.location = 'Required'
     return e
   }
@@ -106,8 +110,7 @@ export default function Sessions() {
           </button>
         </div>
 
-        {/* Filter chips */}
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
           {FILTERS.map((f) => (
             <button
               key={f}
@@ -129,16 +132,15 @@ export default function Sessions() {
         {filtered.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-slate-500 text-sm">No sessions found</p>
-            <button onClick={openAdd} className="mt-3 text-emerald-400 text-sm font-medium">
-              + Add one
-            </button>
+            <button onClick={openAdd} className="mt-3 text-emerald-400 text-sm font-medium">+ Add one</button>
           </div>
         ) : (
           <div className="space-y-3">
             {filtered.map((s) => (
               <div
                 key={s.id}
-                className="bg-slate-800 rounded-xl p-4 flex items-start gap-3"
+                onClick={() => setSelected(s)}
+                className="bg-slate-800 rounded-xl p-4 flex items-start gap-3 cursor-pointer hover:bg-slate-700/80 active:scale-[0.99] transition-all"
               >
                 {/* Date block */}
                 <div className="w-12 h-12 rounded-xl bg-slate-700 flex flex-col items-center justify-center flex-shrink-0">
@@ -151,24 +153,37 @@ export default function Sessions() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-slate-100 leading-snug">{s.title}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium flex-shrink-0 ${TYPE_COLOR[s.type] || TYPE_COLOR.Other}`}>
-                      {s.type}
-                    </span>
                   </div>
                   <p className="text-xs text-slate-400 mt-1">{s.time} · {s.location}</p>
-                  {s.notes && <p className="text-xs text-slate-500 mt-1 truncate">{s.notes}</p>}
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${TYPE_COLOR[s.type] || TYPE_COLOR.Other}`}>
+                      {s.type}
+                    </span>
+                    {s.group && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-medium">
+                        {s.group}
+                      </span>
+                    )}
+                  </div>
+                  {s.notes && <p className="text-xs text-slate-500 mt-1.5 truncate">{s.notes}</p>}
                 </div>
 
-                <button
-                  onClick={() => openEdit(s)}
-                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={(e) => openEdit(e, s)}
+                    className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                    </svg>
+                  </button>
+                  {/* Attendance arrow hint */}
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-slate-600">
+                    <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/>
                   </svg>
-                </button>
+                </div>
               </div>
             ))}
           </div>
@@ -205,6 +220,26 @@ export default function Sessions() {
                   }`}
                 >
                   {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-slate-400 mb-1">Group</label>
+            <div className="flex gap-2 flex-wrap">
+              {GROUPS.map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, group: g }))}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                    form.group === g
+                      ? 'bg-emerald-400 text-slate-900 border-emerald-400'
+                      : 'bg-slate-900 text-slate-400 border-slate-700'
+                  }`}
+                >
+                  {g}
                 </button>
               ))}
             </div>
