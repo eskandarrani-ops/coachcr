@@ -4,8 +4,8 @@ import { initialPlayers } from '../data/initial'
 import Modal from '../components/Modal'
 
 const POSITIONS = ['GK', 'DEF', 'MID', 'FWD']
-const PLAYER_GROUPS = ['U10', 'U12', 'U14', 'U16', 'U18', 'Senior']
-const FILTERS = ['All', ...POSITIONS]
+const PLAYER_GROUPS = ['U7', 'U10', 'U12', 'U14', 'U16', 'U18', 'Senior']
+const FILTERS = ['All', ...PLAYER_GROUPS]
 
 const POS_COLOR = {
   GK:  'bg-amber-500/20 text-amber-300 border-amber-500/30',
@@ -31,7 +31,7 @@ export default function Players() {
 
   const filtered = useMemo(() => {
     return players
-      .filter((p) => filter === 'All' || p.position === filter)
+      .filter((p) => filter === 'All' || p.group === filter)
       .filter((p) => !search || p.name.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => (a.number || 999) - (b.number || 999))
   }, [players, filter, search])
@@ -137,7 +137,7 @@ export default function Players() {
           )}
         </div>
 
-        {/* Position filter */}
+        {/* Group filter */}
         <div className="flex gap-2 overflow-x-auto pb-1">
           {FILTERS.map((f) => (
             <button
@@ -151,7 +151,7 @@ export default function Players() {
             >
               {f}
               {f !== 'All' && (
-                <span className="ml-1 opacity-60">{players.filter((p) => p.position === f).length}</span>
+                <span className="ml-1 opacity-60">{players.filter((p) => p.group === f).length}</span>
               )}
             </button>
           ))}

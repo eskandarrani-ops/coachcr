@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { initialSessions } from '../data/initial'
+import { initialSessions, initialPlayers } from '../data/initial'
 import Modal from '../components/Modal'
 import SessionDetail from './SessionDetail'
 
@@ -20,6 +20,8 @@ function newId() { return 's' + Date.now() }
 
 export default function Sessions() {
   const [sessions, setSessions] = useLocalStorage('coachcr_sessions', initialSessions)
+  const [players]               = useLocalStorage('coachcr_players',   initialPlayers)
+  const [attendance]            = useLocalStorage('coachcr_attendance', {})
   const [filter,   setFilter]   = useState('All')
   const [selected, setSelected] = useState(null)   // session object for detail view
   const [modal,    setModal]    = useState(null)    // null | 'add' | 'edit'
@@ -136,7 +138,17 @@ export default function Sessions() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((s) => (
+            {filtered.map((s) => {
+              const today      = new Date().toISOString().slice(0, 10)
+              const isPast     = s.date < today
+              const sessionAtt = attendance[s.id] || {}
+              const hasAtt     = Object.values(sessionAtt).some((v) => v === true)
+              const groupPlayers = (!s.group || s.group === 'All')
+                ? players
+                : players.filter((p) => !p.group || p.group === s.group)
+              const presentCount = groupPlayers.filter((p) => sessionAtt[p.id] === true).length
+
+              return (
               <div
                 key={s.id}
                 onClick={() => setSelected(s)}
@@ -166,6 +178,11 @@ export default function Sessions() {
                         {s.group}
                       </span>
                     )}
+                    {isPast && hasAtt && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-medium">
+                        ✓ {presentCount} / {groupPlayers.length}
+                      </span>
+                    )}
                   </div>
                   {s.notes && <p className="text-xs text-slate-500 mt-1.5 truncate">{s.notes}</p>}
                 </div>
@@ -185,7 +202,8 @@ export default function Sessions() {
                   </svg>
                 </div>
               </div>
-            ))}
+            )
+          })}
           </div>
         )}
       </div>
