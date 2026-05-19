@@ -15,8 +15,8 @@ export function useLocalStorage(key, initialValue) {
       const next = value instanceof Function ? value(stored) : value
       setStored(next)
       window.localStorage.setItem(key, JSON.stringify(next))
-    } catch (err) {
-      console.error(err)
+    } catch {
+      // silent — storage write failed (quota exceeded or private mode)
     }
   }
 

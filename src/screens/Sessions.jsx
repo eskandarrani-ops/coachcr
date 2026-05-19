@@ -24,10 +24,11 @@ export default function Sessions() {
   const [attendance]            = useLocalStorage('coachcr_attendance', {})
   const [filter,   setFilter]   = useState('All')
   const [selected, setSelected] = useState(null)   // session object for detail view
-  const [modal,    setModal]    = useState(null)    // null | 'add' | 'edit'
-  const [editing,  setEditing]  = useState(null)
-  const [form,     setForm]     = useState(emptyForm)
-  const [errors,   setErrors]   = useState({})
+  const [modal,         setModal]         = useState(null)
+  const [editing,       setEditing]       = useState(null)
+  const [form,          setForm]          = useState(emptyForm)
+  const [errors,        setErrors]        = useState({})
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   // If a session is selected, show its detail screen
   if (selected) {
@@ -45,6 +46,7 @@ export default function Sessions() {
     setForm({ ...emptyForm, date: today })
     setEditing(null)
     setErrors({})
+    setConfirmDelete(false)
     setModal('add')
   }
 
@@ -53,6 +55,7 @@ export default function Sessions() {
     setForm({ ...emptyForm, ...session })
     setEditing(session.id)
     setErrors({})
+    setConfirmDelete(false)
     setModal('edit')
   }
 
@@ -214,14 +217,14 @@ export default function Sessions() {
           title={modal === 'add' ? 'New Session' : 'Edit Session'}
           onClose={() => setModal(null)}
         >
-          {field('title', 'Title', 'text', { placeholder: 'e.g. Morning Training' })}
+          {field('title', 'Title', 'text', { placeholder: 'e.g. Morning Training', maxLength: 80 })}
 
           <div className="grid grid-cols-2 gap-3">
             {field('date', 'Date', 'date')}
             {field('time', 'Time', 'time')}
           </div>
 
-          {field('location', 'Location', 'text', { placeholder: 'e.g. Campo Principal' })}
+          {field('location', 'Location', 'text', { placeholder: 'e.g. Campo Principal', maxLength: 80 })}
 
           <div className="mb-4">
             <label className="block text-xs font-medium text-slate-400 mb-1">Type</label>
@@ -269,6 +272,7 @@ export default function Sessions() {
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
               rows={3}
+              maxLength={500}
               placeholder="Optional notes..."
               className="w-full bg-slate-900 border border-slate-700 focus:border-emerald-400 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 resize-none transition-colors"
             />
@@ -276,19 +280,35 @@ export default function Sessions() {
 
           <div className="flex gap-3 mt-2">
             {modal === 'edit' && (
+              confirmDelete ? (
+                <div className="flex-1 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3">
+                  <p className="text-xs text-rose-300 text-center mb-2">Delete this session? Cannot be undone.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-lg border border-slate-700 text-slate-300 text-xs font-medium">
+                      Cancel
+                    </button>
+                    <button onClick={handleDelete} className="flex-1 py-2 rounded-lg bg-rose-500 text-white text-xs font-semibold">
+                      Yes, delete
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="flex-1 py-3 rounded-xl border border-rose-500/50 text-rose-400 text-sm font-medium hover:bg-rose-500/10 transition-colors"
+                >
+                  Delete
+                </button>
+              )
+            )}
+            {!confirmDelete && (
               <button
-                onClick={handleDelete}
-                className="flex-1 py-3 rounded-xl border border-rose-500/50 text-rose-400 text-sm font-medium hover:bg-rose-500/10 transition-colors"
+                onClick={handleSave}
+                className="flex-1 py-3 rounded-xl bg-emerald-400 text-slate-900 text-sm font-semibold active:scale-95 transition-transform"
               >
-                Delete
+                {modal === 'add' ? 'Create Session' : 'Save Changes'}
               </button>
             )}
-            <button
-              onClick={handleSave}
-              className="flex-1 py-3 rounded-xl bg-emerald-400 text-slate-900 text-sm font-semibold active:scale-95 transition-transform"
-            >
-              {modal === 'add' ? 'Create Session' : 'Save Changes'}
-            </button>
           </div>
         </Modal>
       )}

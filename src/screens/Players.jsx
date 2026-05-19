@@ -24,10 +24,11 @@ export default function Players() {
   const [players, setPlayers] = useLocalStorage('coachcr_players', initialPlayers)
   const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
-  const [modal, setModal] = useState(null)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyForm)
-  const [errors, setErrors] = useState({})
+  const [modal,         setModal]         = useState(null)
+  const [editing,       setEditing]       = useState(null)
+  const [form,          setForm]          = useState(emptyForm)
+  const [errors,        setErrors]        = useState({})
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const filtered = useMemo(() => {
     return players
@@ -40,6 +41,7 @@ export default function Players() {
     setForm(emptyForm)
     setEditing(null)
     setErrors({})
+    setConfirmDelete(false)
     setModal('add')
   }
 
@@ -47,6 +49,7 @@ export default function Players() {
     setForm({ ...player, number: String(player.number || ''), age: String(player.age || '') })
     setEditing(player.id)
     setErrors({})
+    setConfirmDelete(false)
     setModal('edit')
   }
 
@@ -218,11 +221,11 @@ export default function Players() {
           title={modal === 'add' ? 'New Player' : 'Edit Player'}
           onClose={() => setModal(null)}
         >
-          {field('name', 'Full Name', 'text', { placeholder: 'e.g. Carlos Vargas' })}
+          {field('name', 'Full Name', 'text', { placeholder: 'e.g. Carlos Vargas', maxLength: 60 })}
 
           <div className="grid grid-cols-2 gap-3">
-            {field('number', 'Jersey #', 'number', { placeholder: '10', min: 1 })}
-            {field('age', 'Age', 'number', { placeholder: '16', min: 10, max: 25 })}
+            {field('number', 'Jersey #', 'number', { placeholder: '10', min: 1, max: 99 })}
+            {field('age', 'Age', 'number', { placeholder: '16', min: 5, max: 25 })}
           </div>
 
           <div className="mb-4">
@@ -265,7 +268,7 @@ export default function Players() {
             </div>
           </div>
 
-          {field('phone', 'Phone', 'tel', { placeholder: '+506 8800-0000' })}
+          {field('phone', 'Phone', 'tel', { placeholder: '+506 8800-0000', maxLength: 20 })}
 
           <div className="mb-4">
             <label className="block text-xs font-medium text-slate-400 mb-1">Notes</label>
@@ -273,6 +276,7 @@ export default function Players() {
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
               rows={2}
+              maxLength={500}
               placeholder="Optional notes..."
               className="w-full bg-slate-900 border border-slate-700 focus:border-emerald-400 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 resize-none transition-colors"
             />
@@ -280,19 +284,37 @@ export default function Players() {
 
           <div className="flex gap-3 mt-2">
             {modal === 'edit' && (
+              confirmDelete ? (
+                <>
+                  <div className="flex-1 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3">
+                    <p className="text-xs text-rose-300 text-center mb-2">Remove this player? Cannot be undone.</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-lg border border-slate-700 text-slate-300 text-xs font-medium">
+                        Cancel
+                      </button>
+                      <button onClick={handleDelete} className="flex-1 py-2 rounded-lg bg-rose-500 text-white text-xs font-semibold">
+                        Yes, remove
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="flex-1 py-3 rounded-xl border border-rose-500/50 text-rose-400 text-sm font-medium hover:bg-rose-500/10 transition-colors"
+                >
+                  Remove
+                </button>
+              )
+            )}
+            {!confirmDelete && (
               <button
-                onClick={handleDelete}
-                className="flex-1 py-3 rounded-xl border border-rose-500/50 text-rose-400 text-sm font-medium hover:bg-rose-500/10 transition-colors"
+                onClick={handleSave}
+                className="flex-1 py-3 rounded-xl bg-emerald-400 text-slate-900 text-sm font-semibold active:scale-95 transition-transform"
               >
-                Remove
+                {modal === 'add' ? 'Add Player' : 'Save Changes'}
               </button>
             )}
-            <button
-              onClick={handleSave}
-              className="flex-1 py-3 rounded-xl bg-emerald-400 text-slate-900 text-sm font-semibold active:scale-95 transition-transform"
-            >
-              {modal === 'add' ? 'Add Player' : 'Save Changes'}
-            </button>
           </div>
         </Modal>
       )}

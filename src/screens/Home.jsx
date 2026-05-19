@@ -1,6 +1,29 @@
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { initialPlayers, initialSessions, initialVolunteers } from '../data/initial'
 
+function exportBackup() {
+  try {
+    const data = {
+      exportedAt: new Date().toISOString(),
+      app: 'CoachCR',
+      players:    JSON.parse(localStorage.getItem('coachcr_players')    || '[]'),
+      sessions:   JSON.parse(localStorage.getItem('coachcr_sessions')   || '[]'),
+      volunteers: JSON.parse(localStorage.getItem('coachcr_volunteers') || '[]'),
+      attendance: JSON.parse(localStorage.getItem('coachcr_attendance') || '{}'),
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url  = URL.createObjectURL(blob)
+    const a    = Object.assign(document.createElement('a'), {
+      href:     url,
+      download: `coachcr-backup-${new Date().toISOString().slice(0, 10)}.json`,
+    })
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    // download not supported in this environment
+  }
+}
+
 const TYPE_COLOR = {
   Training: 'bg-blue-500/20 text-blue-300',
   Match:    'bg-rose-500/20 text-rose-300',
@@ -139,6 +162,19 @@ export default function Home({ onNavigate }) {
             onClick={() => onNavigate('sessions')}
           />
         </div>
+      </div>
+
+      {/* Export backup */}
+      <div className="px-4 mt-6">
+        <button
+          onClick={exportBackup}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-700 text-slate-400 text-sm font-medium hover:bg-slate-800 hover:text-slate-200 transition-colors active:scale-95"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          Export data backup (.json)
+        </button>
       </div>
 
       {/* Position breakdown */}
