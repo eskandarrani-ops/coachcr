@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { initialSessions, initialPlayers } from '../data/initial'
+import { initialSessions, initialPlayers, initialVolunteers } from '../data/initial'
 import Modal from '../components/Modal'
 import SessionDetail from './SessionDetail'
 
@@ -12,27 +12,28 @@ const TYPE_COLOR = {
 
 const TYPES   = ['Training', 'Match', 'Other']
 const FILTERS = ['All', ...TYPES]
-const GROUPS  = ['All', 'U10', 'U12', 'U14', 'U16', 'U18', 'Senior']
 
-const emptyForm = { title: '', date: '', time: '', location: '', type: 'Training', group: 'All', notes: '' }
+const emptyForm = { title: '', date: '', time: '', location: '', type: 'Training', group: 'All', coaches: [], notes: '' }
 
 function newId() { return 's' + Date.now() }
 
 export default function Sessions() {
   const [sessions, setSessions] = useLocalStorage('coachcr_sessions', initialSessions)
   const [players]               = useLocalStorage('coachcr_players',   initialPlayers)
+  const [volunteers]            = useLocalStorage('coachcr_volunteers', initialVolunteers)
+  const [groups]                = useLocalStorage('coachcr_groups',     ['U7', 'U10', 'U12', 'U14', 'U16', 'U18', 'Senior'])
   const [attendance]            = useLocalStorage('coachcr_attendance', {})
   const [filter,   setFilter]   = useState('All')
-  const [selected, setSelected] = useState(null)   // session object for detail view
+  const [selected, setSelected] = useState(null)
   const [modal,         setModal]         = useState(null)
   const [editing,       setEditing]       = useState(null)
   const [form,          setForm]          = useState(emptyForm)
   const [errors,        setErrors]        = useState({})
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  // If a session is selected, show its detail screen
+  const SESSION_GROUPS = ['All', ...groups]
+
   if (selected) {
-    // Always read the latest version of the session (in case it was edited)
     const live = sessions.find((s) => s.id === selected.id) || selected
     return <SessionDetail session={live} onBack={() => setSelected(null)} />
   }
@@ -52,11 +53,23 @@ export default function Sessions() {
 
   function openEdit(e, session) {
     e.stopPropagation()
-    setForm({ ...emptyForm, ...session })
+    setForm({ ...emptyForm, coaches: [], ...session })
     setEditing(session.id)
     setErrors({})
     setConfirmDelete(false)
     setModal('edit')
+  }
+
+  function toggleCoach(volunteerId) {
+    setForm((f) => {
+      const coaches = f.coaches || []
+      return {
+        ...f,
+        coaches: coaches.includes(volunteerId)
+          ? coaches.filter((id) => id !== volunteerId)
+          : [...coaches, volunteerId],
+      }
+    })
   }
 
   function validate(f) {
@@ -98,6 +111,15 @@ export default function Sessions() {
         {errors[key] && <p className="text-xs text-rose-400 mt-1">{errors[key]}</p>}
       </div>
     )
+  }
+
+  function coachNamesForSession(session) {
+    const ids = session.coaches || []
+    if (ids.length === 0) return null
+    return ids
+      .map((id) => volunteers.find((v) => v.id === id)?.name)
+      .filter(Boolean)
+      .join(', ')
   }
 
   return (
@@ -150,63 +172,72 @@ export default function Sessions() {
                 ? players
                 : players.filter((p) => !p.group || p.group === s.group)
               const presentCount = groupPlayers.filter((p) => sessionAtt[p.id] === true).length
+              const coachNames = coachNamesForSession(s)
 
               return (
-              <div
-                key={s.id}
-                onClick={() => setSelected(s)}
-                className="bg-slate-800 rounded-xl p-4 flex items-start gap-3 cursor-pointer hover:bg-slate-700/80 active:scale-[0.99] transition-all"
-              >
-                {/* Date block */}
-                <div className="w-12 h-12 rounded-xl bg-slate-700 flex flex-col items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-emerald-400 leading-none">
-                    {new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric' })}
-                  </span>
-                  <span className="text-[10px] text-slate-400 uppercase mt-0.5">
-                    {new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
-                  </span>
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-slate-100 leading-snug">{s.title}</p>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">{s.time} · {s.location}</p>
-                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${TYPE_COLOR[s.type] || TYPE_COLOR.Other}`}>
-                      {s.type}
+                <div
+                  key={s.id}
+                  onClick={() => setSelected(s)}
+                  className="bg-slate-800 rounded-xl p-4 flex items-start gap-3 cursor-pointer hover:bg-slate-700/80 active:scale-[0.99] transition-all"
+                >
+                  {/* Date block */}
+                  <div className="w-12 h-12 rounded-xl bg-slate-700 flex flex-col items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-emerald-400 leading-none">
+                      {new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric' })}
                     </span>
-                    {s.group && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-medium">
-                        {s.group}
-                      </span>
-                    )}
-                    {isPast && hasAtt && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-medium">
-                        ✓ {presentCount} / {groupPlayers.length}
-                      </span>
-                    )}
+                    <span className="text-[10px] text-slate-400 uppercase mt-0.5">
+                      {new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
+                    </span>
                   </div>
-                  {s.notes && <p className="text-xs text-slate-500 mt-1.5 truncate">{s.notes}</p>}
-                </div>
 
-                <div className="flex flex-col items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={(e) => openEdit(e, s)}
-                    className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-100 leading-snug">{s.title}</p>
+                    <p className="text-xs text-slate-400 mt-1">{s.time} · {s.location}</p>
+
+                    {/* Coach line */}
+                    <p className="text-xs mt-0.5 flex items-center gap-1">
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 flex-shrink-0 text-slate-500">
+                        <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+                      </svg>
+                      <span className={coachNames ? 'text-slate-300' : 'text-slate-500 italic'}>
+                        {coachNames || 'Unassigned'}
+                      </span>
+                    </p>
+
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${TYPE_COLOR[s.type] || TYPE_COLOR.Other}`}>
+                        {s.type}
+                      </span>
+                      {s.group && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-medium">
+                          {s.group}
+                        </span>
+                      )}
+                      {isPast && hasAtt && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-medium">
+                          ✓ {presentCount} / {groupPlayers.length}
+                        </span>
+                      )}
+                    </div>
+                    {s.notes && <p className="text-xs text-slate-500 mt-1.5 truncate">{s.notes}</p>}
+                  </div>
+
+                  <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={(e) => openEdit(e, s)}
+                      className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                      </svg>
+                    </button>
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-slate-600">
+                      <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/>
                     </svg>
-                  </button>
-                  {/* Attendance arrow hint */}
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-slate-600">
-                    <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/>
-                  </svg>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
           </div>
         )}
       </div>
@@ -249,7 +280,7 @@ export default function Sessions() {
           <div className="mb-4">
             <label className="block text-xs font-medium text-slate-400 mb-1">Group</label>
             <div className="flex gap-2 flex-wrap">
-              {GROUPS.map((g) => (
+              {SESSION_GROUPS.map((g) => (
                 <button
                   key={g}
                   type="button"
@@ -266,6 +297,49 @@ export default function Sessions() {
             </div>
           </div>
 
+          {/* Coach multi-select */}
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-slate-400 mb-2">
+              Coach(es)
+              <span className="ml-1 text-slate-600 font-normal">— select one or more</span>
+            </label>
+            {volunteers.length === 0 ? (
+              <p className="text-xs text-slate-500">No volunteers added yet.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {volunteers.map((v) => {
+                  const selected = (form.coaches || []).includes(v.id)
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => toggleCoach(v.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors ${
+                        selected
+                          ? 'bg-emerald-400/10 border-emerald-400/50 text-slate-100'
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
+                        selected ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'
+                      }`}>
+                        {selected && (
+                          <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-slate-900">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium">{v.name}</span>
+                        <span className="ml-2 text-xs text-slate-500">{v.role}</span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="mb-4">
             <label className="block text-xs font-medium text-slate-400 mb-1">Notes</label>
             <textarea
@@ -278,36 +352,53 @@ export default function Sessions() {
             />
           </div>
 
-          <div className="flex gap-3 mt-2">
+          <div className="mt-2">
+            <button
+              onClick={handleSave}
+              className="w-full py-3 rounded-xl bg-emerald-400 text-slate-900 text-sm font-semibold active:scale-95 transition-transform"
+            >
+              {modal === 'add' ? 'Create Session' : 'Save Changes'}
+            </button>
+
             {modal === 'edit' && (
-              confirmDelete ? (
-                <div className="flex-1 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3">
-                  <p className="text-xs text-rose-300 text-center mb-2">Delete this session? Cannot be undone.</p>
-                  <div className="flex gap-2">
-                    <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-lg border border-slate-700 text-slate-300 text-xs font-medium">
-                      Cancel
-                    </button>
-                    <button onClick={handleDelete} className="flex-1 py-2 rounded-lg bg-rose-500 text-white text-xs font-semibold">
-                      Yes, delete
-                    </button>
-                  </div>
+              <>
+                <div className="flex items-center gap-3 my-5">
+                  <div className="flex-1 h-px bg-slate-700" />
+                  <span className="text-xs text-slate-600 uppercase tracking-wider">Danger zone</span>
+                  <div className="flex-1 h-px bg-slate-700" />
                 </div>
-              ) : (
-                <button
-                  onClick={() => setConfirmDelete(true)}
-                  className="flex-1 py-3 rounded-xl border border-rose-500/50 text-rose-400 text-sm font-medium hover:bg-rose-500/10 transition-colors"
-                >
-                  Delete
-                </button>
-              )
-            )}
-            {!confirmDelete && (
-              <button
-                onClick={handleSave}
-                className="flex-1 py-3 rounded-xl bg-emerald-400 text-slate-900 text-sm font-semibold active:scale-95 transition-transform"
-              >
-                {modal === 'add' ? 'Create Session' : 'Save Changes'}
-              </button>
+
+                {confirmDelete ? (
+                  <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4">
+                    <p className="text-sm text-rose-300 font-medium text-center mb-1">Delete this session?</p>
+                    <p className="text-xs text-rose-400/70 text-center mb-4">This action cannot be undone.</p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setConfirmDelete(false)}
+                        className="flex-1 py-2.5 rounded-xl border border-slate-600 text-slate-300 text-sm font-medium hover:bg-slate-700 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 active:scale-95 transition-all"
+                      >
+                        Yes, delete
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="w-full py-3 rounded-xl border-2 border-rose-500/60 text-rose-400 text-sm font-semibold hover:bg-rose-500/10 hover:border-rose-500 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                    </svg>
+                    Delete Session
+                  </button>
+                )}
+              </>
             )}
           </div>
         </Modal>
