@@ -8,11 +8,23 @@ export default function Modal({ title, onClose, children, footer }) {
   }, [onClose])
 
   return (
+    // z-[60] sits above the bottom nav (z-50) so the nav never covers the modal
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-slate-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90svh] flex flex-col">
+      {/*
+        On mobile:
+          - mb-16 (64 px) lifts the sheet above the bottom nav
+          - max-h is viewport minus that same offset so the sheet never overflows upward
+        On sm+ (desktop/tablet):
+          - mb-0, centered, max-h-[90svh]
+      */}
+      <div className="
+        bg-slate-800 w-full flex flex-col
+        rounded-t-2xl mb-16 max-h-[calc(100svh-4rem)]
+        sm:rounded-2xl sm:mb-0 sm:max-w-lg sm:max-h-[90svh]
+      ">
         {/* Fixed header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-slate-700 flex-shrink-0">
           <h2 className="text-base font-semibold text-slate-100">{title}</h2>
@@ -26,14 +38,17 @@ export default function Modal({ title, onClose, children, footer }) {
           </button>
         </div>
 
-        {/* Scrollable content */}
+        {/* Scrollable form content */}
         <div className="overflow-y-auto flex-1 p-4">
           {children}
         </div>
 
-        {/* Sticky footer — only rendered when footer prop is provided */}
+        {/* Sticky action footer — never scrolled away */}
         {footer && (
-          <div className="flex-shrink-0 px-4 pb-6 pt-3 border-t border-slate-700 bg-slate-800">
+          <div
+            className="flex-shrink-0 px-4 pt-3 pb-5 border-t border-slate-700 bg-slate-800"
+            style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+          >
             {footer}
           </div>
         )}
