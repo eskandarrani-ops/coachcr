@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react'
-import { useLocalStorage } from '../hooks/useLocalStorage'
 import { initialPlayers } from '../data/initial'
+import { useCollection } from '../hooks/useCollection'
+import { useGroups } from '../hooks/useGroups'
 import Modal from '../components/Modal'
 
 const POSITIONS = ['GK', 'DEF', 'MID', 'FWD']
-const DEFAULT_GROUPS = ['U7', 'U10', 'U12', 'U14', 'U16', 'U18', 'Senior']
 
 const POS_COLOR = {
   GK:  'bg-amber-500/20 text-amber-300 border-amber-500/30',
@@ -20,8 +20,8 @@ function newId() {
 }
 
 export default function Players() {
-  const [players, setPlayers] = useLocalStorage('coachcr_players', initialPlayers)
-  const [groups, setGroups]   = useLocalStorage('coachcr_groups', DEFAULT_GROUPS)
+  const [players, setPlayers] = useCollection('coachcr_players', 'players', initialPlayers)
+  const [groups, setGroups]   = useGroups()
   const [filter, setFilter]   = useState('All')
   const [search, setSearch]   = useState('')
   const [modal,         setModal]         = useState(null)

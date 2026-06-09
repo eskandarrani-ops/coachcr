@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { useLocalStorage } from '../hooks/useLocalStorage'
 import { initialSessions, initialPlayers, initialVolunteers } from '../data/initial'
+import { useCollection } from '../hooks/useCollection'
+import { useGroups } from '../hooks/useGroups'
+import { useAttendance } from '../hooks/useAttendance'
 import Modal from '../components/Modal'
 import SessionDetail from './SessionDetail'
 
@@ -18,11 +20,11 @@ const emptyForm = { title: '', date: '', time: '', location: '', type: 'Training
 function newId() { return 's' + Date.now() }
 
 export default function Sessions() {
-  const [sessions, setSessions] = useLocalStorage('coachcr_sessions', initialSessions)
-  const [players]               = useLocalStorage('coachcr_players',   initialPlayers)
-  const [volunteers]            = useLocalStorage('coachcr_volunteers', initialVolunteers)
-  const [groups]                = useLocalStorage('coachcr_groups',     ['U7', 'U10', 'U12', 'U14', 'U16', 'U18', 'Senior'])
-  const [attendance]            = useLocalStorage('coachcr_attendance', {})
+  const [sessions, setSessions] = useCollection('coachcr_sessions',   'sessions',   initialSessions)
+  const [players]               = useCollection('coachcr_players',    'players',    initialPlayers)
+  const [volunteers]            = useCollection('coachcr_volunteers', 'volunteers', initialVolunteers)
+  const [groups]                = useGroups()
+  const [attendance]            = useAttendance()
   const [filter,   setFilter]   = useState('All')
   const [selected, setSelected] = useState(null)
   const [modal,         setModal]         = useState(null)

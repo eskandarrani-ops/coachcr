@@ -1,5 +1,6 @@
-import { useLocalStorage } from '../hooks/useLocalStorage'
 import { initialPlayers } from '../data/initial'
+import { useCollection } from '../hooks/useCollection'
+import { useAttendance } from '../hooks/useAttendance'
 
 const POS_COLOR = {
   GK:  'bg-amber-500/20 text-amber-300',
@@ -21,8 +22,8 @@ function formatDate(dateStr) {
 }
 
 export default function SessionDetail({ session, onBack }) {
-  const [players]    = useLocalStorage('coachcr_players', initialPlayers)
-  const [attendance, setAttendance] = useLocalStorage('coachcr_attendance', {})
+  const [players]              = useCollection('coachcr_players', 'players', initialPlayers)
+  const [attendance, setAttendance] = useAttendance()
 
   const sessionAtt = attendance[session.id] || {}
 

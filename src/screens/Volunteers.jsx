@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useLocalStorage } from '../hooks/useLocalStorage'
 import { initialVolunteers } from '../data/initial'
+import { useCollection } from '../hooks/useCollection'
 import Modal from '../components/Modal'
 
 const ROLES = [
@@ -53,7 +53,7 @@ function safeContactHref(phone, email) {
 }
 
 export default function Volunteers() {
-  const [volunteers,    setVolunteers]    = useLocalStorage('coachcr_volunteers', initialVolunteers)
+  const [volunteers, setVolunteers] = useCollection('coachcr_volunteers', 'volunteers', initialVolunteers)
   const [modal,         setModal]         = useState(null)
   const [editing,       setEditing]       = useState(null)
   const [form,          setForm]          = useState(emptyForm)
