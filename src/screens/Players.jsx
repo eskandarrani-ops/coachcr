@@ -339,6 +339,57 @@ export default function Players() {
         <Modal
           title={modal === 'add' ? 'New Player' : 'Edit Player'}
           onClose={() => setModal(null)}
+          footer={
+            <div>
+              <button
+                onClick={handleSave}
+                className="w-full py-3 rounded-xl bg-emerald-400 text-slate-900 text-sm font-semibold active:scale-95 transition-transform"
+              >
+                {modal === 'add' ? 'Add Player' : 'Save Changes'}
+              </button>
+
+              {modal === 'edit' && (
+                <>
+                  <div className="flex items-center gap-3 my-4">
+                    <div className="flex-1 h-px bg-slate-700" />
+                    <span className="text-xs text-slate-600 uppercase tracking-wider">Danger zone</span>
+                    <div className="flex-1 h-px bg-slate-700" />
+                  </div>
+
+                  {confirmDelete ? (
+                    <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4">
+                      <p className="text-sm text-rose-300 font-medium text-center mb-1">Remove this player?</p>
+                      <p className="text-xs text-rose-400/70 text-center mb-4">This action cannot be undone.</p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setConfirmDelete(false)}
+                          className="flex-1 py-2.5 rounded-xl border border-slate-600 text-slate-300 text-sm font-medium hover:bg-slate-700 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 active:scale-95 transition-all"
+                        >
+                          Yes, delete
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDelete(true)}
+                      className="w-full py-3 rounded-xl border-2 border-rose-500/60 text-rose-400 text-sm font-semibold hover:bg-rose-500/10 hover:border-rose-500 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                      </svg>
+                      Remove Player
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          }
         >
           {field('name', 'Full Name', 'text', { placeholder: 'e.g. Carlos Vargas', maxLength: 60 })}
 
@@ -401,7 +452,7 @@ export default function Players() {
 
           {field('phone', 'Phone', 'tel', { placeholder: '+506 8800-0000', maxLength: 20 })}
 
-          <div className="mb-4">
+          <div className="mb-2">
             <label className="block text-xs font-medium text-slate-400 mb-1">Notes</label>
             <textarea
               value={form.notes}
@@ -411,56 +462,6 @@ export default function Players() {
               placeholder="Optional notes..."
               className="w-full bg-slate-900 border border-slate-700 focus:border-emerald-400 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 resize-none transition-colors"
             />
-          </div>
-
-          <div className="mt-2">
-            <button
-              onClick={handleSave}
-              className="w-full py-3 rounded-xl bg-emerald-400 text-slate-900 text-sm font-semibold active:scale-95 transition-transform"
-            >
-              {modal === 'add' ? 'Add Player' : 'Save Changes'}
-            </button>
-
-            {modal === 'edit' && (
-              <>
-                <div className="flex items-center gap-3 my-5">
-                  <div className="flex-1 h-px bg-slate-700" />
-                  <span className="text-xs text-slate-600 uppercase tracking-wider">Danger zone</span>
-                  <div className="flex-1 h-px bg-slate-700" />
-                </div>
-
-                {confirmDelete ? (
-                  <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4">
-                    <p className="text-sm text-rose-300 font-medium text-center mb-1">Remove this player?</p>
-                    <p className="text-xs text-rose-400/70 text-center mb-4">This action cannot be undone.</p>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => setConfirmDelete(false)}
-                        className="flex-1 py-2.5 rounded-xl border border-slate-600 text-slate-300 text-sm font-medium hover:bg-slate-700 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleDelete}
-                        className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 active:scale-95 transition-all"
-                      >
-                        Yes, delete
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setConfirmDelete(true)}
-                    className="w-full py-3 rounded-xl border-2 border-rose-500/60 text-rose-400 text-sm font-semibold hover:bg-rose-500/10 hover:border-rose-500 active:scale-95 transition-all flex items-center justify-center gap-2"
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                    </svg>
-                    Remove Player
-                  </button>
-                )}
-              </>
-            )}
           </div>
         </Modal>
       )}

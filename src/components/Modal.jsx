@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-export default function Modal({ title, onClose, children }) {
+export default function Modal({ title, onClose, children, footer }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', onKey)
@@ -13,6 +13,7 @@ export default function Modal({ title, onClose, children }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-slate-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90svh] flex flex-col">
+        {/* Fixed header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-slate-700 flex-shrink-0">
           <h2 className="text-base font-semibold text-slate-100">{title}</h2>
           <button
@@ -24,9 +25,18 @@ export default function Modal({ title, onClose, children }) {
             </svg>
           </button>
         </div>
+
+        {/* Scrollable content */}
         <div className="overflow-y-auto flex-1 p-4">
           {children}
         </div>
+
+        {/* Sticky footer — only rendered when footer prop is provided */}
+        {footer && (
+          <div className="flex-shrink-0 px-4 pb-6 pt-3 border-t border-slate-700 bg-slate-800">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   )

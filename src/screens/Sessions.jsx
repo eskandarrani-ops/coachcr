@@ -247,6 +247,57 @@ export default function Sessions() {
         <Modal
           title={modal === 'add' ? 'New Session' : 'Edit Session'}
           onClose={() => setModal(null)}
+          footer={
+            <div>
+              <button
+                onClick={handleSave}
+                className="w-full py-3 rounded-xl bg-emerald-400 text-slate-900 text-sm font-semibold active:scale-95 transition-transform"
+              >
+                {modal === 'add' ? 'Create Session' : 'Save Changes'}
+              </button>
+
+              {modal === 'edit' && (
+                <>
+                  <div className="flex items-center gap-3 my-4">
+                    <div className="flex-1 h-px bg-slate-700" />
+                    <span className="text-xs text-slate-600 uppercase tracking-wider">Danger zone</span>
+                    <div className="flex-1 h-px bg-slate-700" />
+                  </div>
+
+                  {confirmDelete ? (
+                    <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4">
+                      <p className="text-sm text-rose-300 font-medium text-center mb-1">Delete this session?</p>
+                      <p className="text-xs text-rose-400/70 text-center mb-4">This action cannot be undone.</p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setConfirmDelete(false)}
+                          className="flex-1 py-2.5 rounded-xl border border-slate-600 text-slate-300 text-sm font-medium hover:bg-slate-700 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 active:scale-95 transition-all"
+                        >
+                          Yes, delete
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDelete(true)}
+                      className="w-full py-3 rounded-xl border-2 border-rose-500/60 text-rose-400 text-sm font-semibold hover:bg-rose-500/10 hover:border-rose-500 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                      </svg>
+                      Delete Session
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          }
         >
           {field('title', 'Title', 'text', { placeholder: 'e.g. Morning Training', maxLength: 80 })}
 
@@ -308,22 +359,22 @@ export default function Sessions() {
             ) : (
               <div className="space-y-1.5">
                 {volunteers.map((v) => {
-                  const selected = (form.coaches || []).includes(v.id)
+                  const isSelected = (form.coaches || []).includes(v.id)
                   return (
                     <button
                       key={v.id}
                       type="button"
                       onClick={() => toggleCoach(v.id)}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors ${
-                        selected
+                        isSelected
                           ? 'bg-emerald-400/10 border-emerald-400/50 text-slate-100'
                           : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
                       }`}
                     >
                       <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
-                        selected ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'
+                        isSelected ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'
                       }`}>
-                        {selected && (
+                        {isSelected && (
                           <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-slate-900">
                             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
                           </svg>
@@ -340,7 +391,7 @@ export default function Sessions() {
             )}
           </div>
 
-          <div className="mb-4">
+          <div className="mb-2">
             <label className="block text-xs font-medium text-slate-400 mb-1">Notes</label>
             <textarea
               value={form.notes}
@@ -350,56 +401,6 @@ export default function Sessions() {
               placeholder="Optional notes..."
               className="w-full bg-slate-900 border border-slate-700 focus:border-emerald-400 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 resize-none transition-colors"
             />
-          </div>
-
-          <div className="mt-2">
-            <button
-              onClick={handleSave}
-              className="w-full py-3 rounded-xl bg-emerald-400 text-slate-900 text-sm font-semibold active:scale-95 transition-transform"
-            >
-              {modal === 'add' ? 'Create Session' : 'Save Changes'}
-            </button>
-
-            {modal === 'edit' && (
-              <>
-                <div className="flex items-center gap-3 my-5">
-                  <div className="flex-1 h-px bg-slate-700" />
-                  <span className="text-xs text-slate-600 uppercase tracking-wider">Danger zone</span>
-                  <div className="flex-1 h-px bg-slate-700" />
-                </div>
-
-                {confirmDelete ? (
-                  <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4">
-                    <p className="text-sm text-rose-300 font-medium text-center mb-1">Delete this session?</p>
-                    <p className="text-xs text-rose-400/70 text-center mb-4">This action cannot be undone.</p>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => setConfirmDelete(false)}
-                        className="flex-1 py-2.5 rounded-xl border border-slate-600 text-slate-300 text-sm font-medium hover:bg-slate-700 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleDelete}
-                        className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 active:scale-95 transition-all"
-                      >
-                        Yes, delete
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setConfirmDelete(true)}
-                    className="w-full py-3 rounded-xl border-2 border-rose-500/60 text-rose-400 text-sm font-semibold hover:bg-rose-500/10 hover:border-rose-500 active:scale-95 transition-all flex items-center justify-center gap-2"
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                    </svg>
-                    Delete Session
-                  </button>
-                )}
-              </>
-            )}
           </div>
         </Modal>
       )}
