@@ -11,6 +11,7 @@
  */
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { setStatus } from '../lib/supabaseStatus'
 
 const LOCAL_KEY = 'coachcr_attendance'
 
@@ -53,23 +54,34 @@ export function useAttendance() {
   useEffect(() => {
     if (!supabase) return
 
+    console.log('[useAttendance] fetching from Supabase…')
     supabase.from('attendance').select('*').then(({ data, error }) => {
       if (error) {
-        console.warn('[Supabase] fetch attendance:', error.message)
+        console.error('[useAttendance] fetch error:', error.code, error.message)
+        setStatus('offline')
         return
       }
+
+      console.log(`[useAttendance] Supabase returned ${data.length} attendance rows`)
+      setStatus('connected')
 
       if (data && data.length > 0) {
         const nested = rowsToNested(data)
         setAttState(nested)
         lsSet(nested)
       } else {
-        // Seed Supabase with localStorage data
         const seed = lsGet()
         const rows = nestedToRows(seed)
+        console.log(`[useAttendance] Supabase empty, seeding with ${rows.length} rows…`)
         if (rows.length > 0) {
           supabase.from('attendance').upsert(rows).then(({ error: e }) => {
-            if (e) console.warn('[Supabase] seed attendance:', e.message)
+            if (e) {
+              console.error('[useAttendance] seed error:', e.code, e.message,
+                e.code === '42501' ? '\n⚠️  RLS POLICY MISSING on attendance table' : '')
+              setStatus('rls-error')
+            } else {
+              console.log('[useAttendance] seed OK ✓')
+            }
           })
         }
       }
@@ -96,17 +108,18 @@ export function useAttendance() {
           // Delete all existing rows for this session, then insert the new ones.
           // This handles adds, updates, and removals in one simple operation.
           supabase.from('attendance').delete().eq('session_id', sid).then(({ error }) => {
-            if (error) { console.warn('[Supabase] attendance delete:', error.message); return }
+            if (error) { console.error('[useAttendance] delete error:', error.code, error.message); return }
 
             const newRows = Object.entries(next[sid] ?? {}).map(([player_id, status]) => ({
-              session_id: sid,
-              player_id,
-              status,
+              session_id: sid, player_id, status,
             }))
             if (newRows.length > 0) {
               supabase.from('attendance').insert(newRows).then(({ error: e }) => {
-                if (e) console.warn('[Supabase] attendance insert:', e.message)
+                if (e) console.error('[useAttendance] insert error:', e.code, e.message)
+                else console.log(`[useAttendance] session ${sid} synced (${newRows.length} rows) ✓`)
               })
+            } else {
+              console.log(`[useAttendance] session ${sid} cleared ✓`)
             }
           })
         }

@@ -1,18 +1,20 @@
 /**
  * useCollection – drop-in replacement for useLocalStorage for arrays of objects with an `id` field.
  *
- * Behaviour:
- *  1. Reads from localStorage immediately (instant first render, works offline).
- *  2. On mount, fetches the table from Supabase:
- *       – If Supabase has rows → use as source of truth, update localStorage.
- *       – If Supabase is empty → seed it with whatever is in localStorage.
- *       – If Supabase is unreachable → stay on localStorage silently.
- *  3. On every write, updates state + localStorage synchronously, then diffs
- *     against the previous value and pushes only the changes to Supabase
- *     (upsert added/edited rows, delete removed rows).
+ * Priority on load:
+ *   1. Render from localStorage immediately (instant first paint, works offline).
+ *   2. Fetch from Supabase async:
+ *        – Got rows  → Supabase is source of truth, overwrite state + localStorage.
+ *        – Empty     → Seed Supabase with current localStorage data.
+ *        – Error     → Stay on localStorage, log details, mark status.
+ *
+ * Priority on write:
+ *   Update state + localStorage synchronously.
+ *   Diff against previous value → upsert changed/added rows, delete removed rows in Supabase.
  */
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { setStatus } from '../lib/supabaseStatus'
 
 function lsGet(key, fallback) {
   try {
@@ -24,11 +26,9 @@ function lsGet(key, fallback) {
 }
 
 function lsSet(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* quota / private mode */ }
+  try { localStorage.setItem(key, JSON.stringify(value)) } catch {}
 }
 
-// Normalise a row coming back from Supabase so it matches the app's shape.
-// Handles jsonb fields that PostgREST already parses, and ensures coaches is always [].
 function normaliseRow(tableName, row) {
   if (tableName === 'sessions') {
     return { ...row, coaches: row.coaches ?? [] }
@@ -37,32 +37,61 @@ function normaliseRow(tableName, row) {
 }
 
 export function useCollection(localKey, tableName, initialValue) {
-  const [data, setDataState] = useState(() => lsGet(localKey, initialValue))
+  const [data, setDataState] = useState(() => {
+    const cached = lsGet(localKey, initialValue)
+    console.log(`[useCollection] ${tableName} — init from localStorage: ${cached.length} rows`)
+    return cached
+  })
 
   // ------------------------------------------------------------------
-  // Initial fetch from Supabase
+  // Initial Supabase fetch
   // ------------------------------------------------------------------
   useEffect(() => {
-    if (!supabase) return
+    if (!supabase) {
+      console.warn(`[useCollection] ${tableName} — Supabase client is null (missing env vars), using localStorage only`)
+      setStatus('offline')
+      return
+    }
+
+    console.log(`[useCollection] ${tableName} — fetching from Supabase…`)
 
     supabase.from(tableName).select('*').then(({ data: rows, error }) => {
       if (error) {
-        console.warn(`[Supabase] fetch ${tableName}:`, error.message)
+        console.error(`[useCollection] ${tableName} — fetch error:`, error.code, error.message)
+        setStatus('offline')
         return
       }
 
+      console.log(`[useCollection] ${tableName} — Supabase returned ${rows.length} rows`)
+      setStatus('connected')
+
       if (rows.length > 0) {
-        // Supabase is the source of truth
+        // ✅ Supabase has data — use it as the source of truth
         const normalised = rows.map(r => normaliseRow(tableName, r))
+        console.log(`[useCollection] ${tableName} — overwriting localStorage with Supabase data`)
         setDataState(normalised)
         lsSet(localKey, normalised)
       } else {
-        // Supabase is empty – seed it with localStorage data
+        // ⚠️ Supabase is empty — attempt to seed it from localStorage
         const seed = lsGet(localKey, initialValue)
+        console.log(`[useCollection] ${tableName} — Supabase empty, seeding with ${seed.length} rows from localStorage…`)
+
         if (seed.length > 0) {
           const seedRows = seed.map(r => normaliseRow(tableName, r))
-          supabase.from(tableName).upsert(seedRows).then(({ error: e }) => {
-            if (e) console.warn(`[Supabase] seed ${tableName}:`, e.message)
+          supabase.from(tableName).upsert(seedRows).then(({ error: seedErr }) => {
+            if (seedErr) {
+              console.error(
+                `[useCollection] ${tableName} — seed FAILED:`,
+                seedErr.code, seedErr.message,
+                seedErr.code === '42501'
+                  ? '\n⚠️  RLS POLICY MISSING — run: ALTER TABLE ' + tableName + ' DISABLE ROW LEVEL SECURITY;'
+                  : ''
+              )
+              setStatus('rls-error')
+            } else {
+              console.log(`[useCollection] ${tableName} — seed OK ✓`)
+              setStatus('connected')
+            }
           })
         }
       }
@@ -79,26 +108,36 @@ export function useCollection(localKey, tableName, initialValue) {
       lsSet(localKey, next)
 
       if (supabase) {
-        const nextIds = new Set(next.map(r => r.id))
-        const currentIds = new Set(current.map(r => r.id))
+        const nextMap = new Map(next.map(r => [r.id, r]))
+        const currentMap = new Map(current.map(r => [r.id, r]))
 
-        // Rows removed from the array → DELETE
-        const deletedIds = current.filter(r => !nextIds.has(r.id)).map(r => r.id)
-
-        // Rows that are new or changed → UPSERT
+        const deletedIds = current.filter(r => !nextMap.has(r.id)).map(r => r.id)
         const toUpsert = next.filter(r => {
-          if (!currentIds.has(r.id)) return true               // new row
-          const old = current.find(o => o.id === r.id)
-          return JSON.stringify(old) !== JSON.stringify(r)     // changed row
+          const old = currentMap.get(r.id)
+          return !old || JSON.stringify(old) !== JSON.stringify(r)
         }).map(r => normaliseRow(tableName, r))
 
         if (deletedIds.length > 0) {
-          supabase.from(tableName).delete().in('id', deletedIds)
-            .then(({ error }) => { if (error) console.warn(`[Supabase] delete ${tableName}:`, error.message) })
+          console.log(`[useCollection] ${tableName} — deleting IDs:`, deletedIds)
+          supabase.from(tableName).delete().in('id', deletedIds).then(({ error }) => {
+            if (error) console.error(`[useCollection] ${tableName} delete error:`, error.message)
+            else console.log(`[useCollection] ${tableName} — deleted ${deletedIds.length} row(s) ✓`)
+          })
         }
+
         if (toUpsert.length > 0) {
-          supabase.from(tableName).upsert(toUpsert)
-            .then(({ error }) => { if (error) console.warn(`[Supabase] upsert ${tableName}:`, error.message) })
+          console.log(`[useCollection] ${tableName} — upserting ${toUpsert.length} row(s)`)
+          supabase.from(tableName).upsert(toUpsert).then(({ error }) => {
+            if (error) {
+              console.error(
+                `[useCollection] ${tableName} upsert error:`, error.code, error.message,
+                error.code === '42501' ? '\n⚠️  RLS POLICY BLOCKING WRITES' : ''
+              )
+              setStatus('rls-error')
+            } else {
+              console.log(`[useCollection] ${tableName} — upserted ${toUpsert.length} row(s) ✓`)
+            }
+          })
         }
       }
 

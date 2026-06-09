@@ -1,5 +1,39 @@
-import { useLocalStorage } from '../hooks/useLocalStorage'
+import { useState, useEffect } from 'react'
 import { initialPlayers, initialSessions, initialVolunteers } from '../data/initial'
+import { useCollection } from '../hooks/useCollection'
+import { getStatus, onStatusChange } from '../lib/supabaseStatus'
+
+// ─── Supabase status badge ──────────────────────────────────────────────────
+
+function useSupabaseStatus() {
+  const [status, setStatus] = useState(getStatus)
+  useEffect(() => onStatusChange(setStatus), [])
+  return status
+}
+
+const STATUS_CONFIG = {
+  checking:   { dot: 'bg-slate-500 animate-pulse', text: 'Connecting…',            bg: 'bg-slate-800 border-slate-700',   color: 'text-slate-400'  },
+  connected:  { dot: 'bg-emerald-400',              text: 'Supabase connected',     bg: 'bg-emerald-500/10 border-emerald-500/20', color: 'text-emerald-300' },
+  'rls-error':{ dot: 'bg-amber-400 animate-pulse',  text: 'DB write blocked — RLS', bg: 'bg-amber-500/10 border-amber-500/20',    color: 'text-amber-300'  },
+  offline:    { dot: 'bg-rose-400',                  text: 'Offline — local data',   bg: 'bg-rose-500/10 border-rose-500/20',      color: 'text-rose-300'   },
+}
+
+function StatusBadge() {
+  const status = useSupabaseStatus()
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.checking
+
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${cfg.bg} ${cfg.color}`}>
+      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
+      {cfg.text}
+      {status === 'rls-error' && (
+        <span className="ml-1 opacity-70">— see console</span>
+      )}
+    </div>
+  )
+}
+
+// ─── Backup export ──────────────────────────────────────────────────────────
 
 function exportBackup() {
   try {
@@ -24,6 +58,8 @@ function exportBackup() {
   }
 }
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
 const TYPE_COLOR = {
   Training: 'bg-blue-500/20 text-blue-300',
   Match:    'bg-rose-500/20 text-rose-300',
@@ -35,10 +71,12 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+// ─── Screen ─────────────────────────────────────────────────────────────────
+
 export default function Home({ onNavigate }) {
-  const [players]    = useLocalStorage('coachcr_players',    initialPlayers)
-  const [sessions]   = useLocalStorage('coachcr_sessions',   initialSessions)
-  const [volunteers] = useLocalStorage('coachcr_volunteers', initialVolunteers)
+  const [players]    = useCollection('coachcr_players',    'players',    initialPlayers)
+  const [sessions]   = useCollection('coachcr_sessions',   'sessions',   initialSessions)
+  const [volunteers] = useCollection('coachcr_volunteers', 'volunteers', initialVolunteers)
 
   const today = new Date().toISOString().slice(0, 10)
   const upcoming = [...sessions]
@@ -60,7 +98,7 @@ export default function Home({ onNavigate }) {
     <div className="pb-4">
       {/* Header */}
       <div className="px-4 pt-12 pb-6 bg-gradient-to-b from-slate-800 to-slate-900">
-        <div className="flex items-center gap-3 mb-1">
+        <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-400 flex items-center justify-center">
             <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
@@ -71,30 +109,17 @@ export default function Home({ onNavigate }) {
             <p className="text-xs text-slate-400">Football Academy · Costa Rica</p>
           </div>
         </div>
+
+        {/* ← Supabase connection status badge */}
+        <StatusBadge />
       </div>
 
       {/* Stats */}
       <div className="px-4 -mt-4">
         <div className="grid grid-cols-3 gap-3">
-          <StatCard
-            label="Players"
-            value={players.length}
-            icon="👥"
-            onClick={() => onNavigate('players')}
-          />
-          <StatCard
-            label="This Week"
-            value={thisWeek.length}
-            suffix="sessions"
-            icon="📅"
-            onClick={() => onNavigate('sessions')}
-          />
-          <StatCard
-            label="Staff"
-            value={volunteers.length}
-            icon="🏅"
-            onClick={() => onNavigate('volunteers')}
-          />
+          <StatCard label="Players"   value={players.length}    icon="👥" onClick={() => onNavigate('players')} />
+          <StatCard label="This Week" value={thisWeek.length}   icon="📅" suffix="sessions" onClick={() => onNavigate('sessions')} />
+          <StatCard label="Staff"     value={volunteers.length} icon="🏅" onClick={() => onNavigate('volunteers')} />
         </div>
       </div>
 
@@ -102,10 +127,7 @@ export default function Home({ onNavigate }) {
       <div className="px-4 mt-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Upcoming Sessions</h2>
-          <button
-            onClick={() => onNavigate('sessions')}
-            className="text-xs text-emerald-400 font-medium"
-          >
+          <button onClick={() => onNavigate('sessions')} className="text-xs text-emerald-400 font-medium">
             See all →
           </button>
         </div>
@@ -113,10 +135,7 @@ export default function Home({ onNavigate }) {
         {upcoming.length === 0 ? (
           <div className="bg-slate-800 rounded-xl p-6 text-center">
             <p className="text-slate-400 text-sm">No upcoming sessions</p>
-            <button
-              onClick={() => onNavigate('sessions')}
-              className="mt-3 text-sm text-emerald-400 font-medium"
-            >
+            <button onClick={() => onNavigate('sessions')} className="mt-3 text-sm text-emerald-400 font-medium">
               Schedule one →
             </button>
           </div>
@@ -149,18 +168,8 @@ export default function Home({ onNavigate }) {
       <div className="px-4 mt-6">
         <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Quick Actions</h2>
         <div className="grid grid-cols-2 gap-3">
-          <QuickAction
-            label="Add Player"
-            desc="Register a new player"
-            icon="➕"
-            onClick={() => onNavigate('players')}
-          />
-          <QuickAction
-            label="New Session"
-            desc="Schedule training or match"
-            icon="📋"
-            onClick={() => onNavigate('sessions')}
-          />
+          <QuickAction label="Add Player"  desc="Register a new player"       icon="➕" onClick={() => onNavigate('players')} />
+          <QuickAction label="New Session" desc="Schedule training or match"   icon="📋" onClick={() => onNavigate('sessions')} />
         </div>
       </div>
 
@@ -193,10 +202,7 @@ export default function Home({ onNavigate }) {
                   <span className="text-xs font-semibold text-slate-200">{count}</span>
                 </div>
                 <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${colors[pos]}`}
-                    style={{ width: `${pct}%` }}
-                  />
+                  <div className={`h-full rounded-full ${colors[pos]}`} style={{ width: `${pct}%` }} />
                 </div>
               </div>
             )
@@ -209,10 +215,7 @@ export default function Home({ onNavigate }) {
 
 function StatCard({ label, value, suffix, icon, onClick }) {
   return (
-    <button
-      onClick={onClick}
-      className="bg-slate-800 rounded-xl p-3 text-left hover:bg-slate-700 transition-colors active:scale-95"
-    >
+    <button onClick={onClick} className="bg-slate-800 rounded-xl p-3 text-left hover:bg-slate-700 transition-colors active:scale-95">
       <span className="text-xl">{icon}</span>
       <p className="text-2xl font-bold text-slate-100 mt-1 leading-none">{value}</p>
       <p className="text-xs text-slate-400 mt-0.5">{suffix || label}</p>
@@ -222,10 +225,7 @@ function StatCard({ label, value, suffix, icon, onClick }) {
 
 function QuickAction({ label, desc, icon, onClick }) {
   return (
-    <button
-      onClick={onClick}
-      className="bg-slate-800 rounded-xl p-4 text-left hover:bg-slate-700 transition-colors active:scale-95"
-    >
+    <button onClick={onClick} className="bg-slate-800 rounded-xl p-4 text-left hover:bg-slate-700 transition-colors active:scale-95">
       <span className="text-2xl">{icon}</span>
       <p className="text-sm font-semibold text-slate-100 mt-2">{label}</p>
       <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
